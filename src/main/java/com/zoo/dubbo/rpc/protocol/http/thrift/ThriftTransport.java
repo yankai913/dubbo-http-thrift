@@ -39,7 +39,17 @@ public class ThriftTransport extends TTransport {
 
     @Override
     public void close() {
-        // Buffer is always open
+        try {
+            if (input != null) {
+                input.close();
+            }
+            if (output != null) {
+                output.close();
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 

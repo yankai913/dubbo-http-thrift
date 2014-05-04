@@ -30,7 +30,7 @@ public class ThriftServiceExporter {
             new ConcurrentHashMap<Class<?>, TProcessor>();
 
     public List<HttpHandler> extHandlerList = new ArrayList<HttpHandler>();
-    
+
     private Object service;
 
     private Class<?> serviceInterface;
@@ -94,12 +94,7 @@ public class ThriftServiceExporter {
         }
         finally {
             prot.getTransport().flush();
-            if (is != null) {
-                is.close();
-            }
-            if (os != null) {
-                os.close();
-            }
+            prot.getTransport().close();
         }
     }
 
@@ -129,5 +124,12 @@ public class ThriftServiceExporter {
             e.printStackTrace();
         }
         return null;
+    }
+
+
+    void filter() {
+        for (HttpHandler handler : extHandlerList) {
+
+        }
     }
 }

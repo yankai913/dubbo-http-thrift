@@ -27,8 +27,10 @@ import org.jboss.netty.buffer.ChannelBuffer;
  */
 public class TBaseTools {
 
-    static final ConcurrentMap<String, Class<?>> CACHED_CLASS = new ConcurrentHashMap<String, Class<?>>();
-    static final ConcurrentMap<String, Constructor<?>> CACHED_CONSTRUCTOR =
+    public static final String POISON_METHOD = "poisonMethod";// 毒丸方法名称，用于服务器端异常时，构造异常的TMessage
+    
+    public static final ConcurrentMap<String, Class<?>> CACHED_CLASS = new ConcurrentHashMap<String, Class<?>>();
+    public static final ConcurrentMap<String, Constructor<?>> CACHED_CONSTRUCTOR =
             new ConcurrentHashMap<String, Constructor<?>>();
 
 

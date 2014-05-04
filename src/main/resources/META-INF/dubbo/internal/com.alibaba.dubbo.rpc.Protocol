@@ -1,1 +1,1 @@
-httpThrift=com.zoo.dubbo.rpc.protocol.http.thrift.ThriftProtocol
+httpt=com.zoo.dubbo.rpc.protocol.http.thrift.ThriftProtocol
