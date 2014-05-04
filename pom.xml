@@ -13,9 +13,15 @@
 		<thrift.version>0.9.1</thrift.version>
 		<dubbo.version>2.5.3</dubbo.version>
 		<dubbo.scope>provided</dubbo.scope>
+		<servlet.version>2.5</servlet.version>
 	</properties>
 
 	<dependencies>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>servlet-api</artifactId>
+			<version>${servlet.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
