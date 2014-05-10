@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentMap;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.thrift.TMultiplexedProcessor;
 import org.apache.thrift.TProcessor;
 import org.apache.thrift.protocol.TMessage;
 import org.apache.thrift.protocol.TProtocol;
@@ -22,12 +23,14 @@ import com.alibaba.dubbo.remoting.http.HttpHandler;
  * @author yankai913@gmail.com
  * @date 2014-5-4
  */
-public class ThriftServiceExporter {
+public class HttpThriftServiceExporter {
 
-    public static final String THRIFT_CONTENT_TYPE = "application/x-thrift";
+    private static final String THRIFT_CONTENT_TYPE = HttpExecutor.CONTENT_TYPE_SERIALIZED_OBJECT;
 
-    public static ConcurrentMap<Class<?>, TProcessor> SERVICE_CLASS_PROCESSOR_MAP =
+    protected static ConcurrentMap<Class<?>, TProcessor> serviceClass2tProcessorMap =
             new ConcurrentHashMap<Class<?>, TProcessor>();
+
+    protected static TMultiplexedProcessor tMultiplexedProcessor = new TMultiplexedProcessor();
 
     public List<HttpHandler> extHandlerList = new ArrayList<HttpHandler>();
 
@@ -74,27 +77,30 @@ public class ThriftServiceExporter {
 
 
     public void handleRequest(HttpServletRequest request, HttpServletResponse response) throws Throwable {
+        //
         response.setContentType(THRIFT_CONTENT_TYPE);
-        InputStream is = null;
-        OutputStream os = null;
-        TProtocol prot = null;
+        InputStream inputStream = request.getInputStream();
+        ;
+        OutputStream outputStream = response.getOutputStream();
+        ;
+        String serviceName = getServiceInterface().getName();
+        TProtocol proto = HttpThriftTool.newProtocol(inputStream, outputStream, serviceName);
         TProcessor processor = null;
         try {
-            is = request.getInputStream();
-            os = response.getOutputStream();
-            prot = TBaseTools.newProtocol(is, os);
             processor = getTProcessor(getServiceInterface(), getService());
-            processor.process(prot, prot);
+            // register
+            tMultiplexedProcessor.registerProcessor(serviceName, processor);
+            tMultiplexedProcessor.process(proto, proto);
         }
         catch (Throwable t) {
-            is.reset();
-            TMessage tmessage = prot.readMessageBegin();
-            TBaseTools.createErrorTMessage(prot, tmessage.name, tmessage.seqid,
+            inputStream.reset();
+            TMessage tmessage = proto.readMessageBegin();
+            HttpThriftTool.createErrorTMessage(proto, tmessage.name, tmessage.seqid,
                 "Server-Side Error:" + t.toString());
         }
         finally {
-            prot.getTransport().flush();
-            prot.getTransport().close();
+            proto.getTransport().flush();
+            proto.getTransport().close();
         }
     }
 
@@ -109,14 +115,14 @@ public class ThriftServiceExporter {
             if (serviceImpl == null) {
                 throw new IllegalStateException("serviceImpl is null, can not create TProcessor");
             }
-            TProcessor processor = SERVICE_CLASS_PROCESSOR_MAP.get(serviceIface);
+            TProcessor processor = serviceClass2tProcessorMap.get(serviceIface);
             if (processor == null) {
                 String iface = serviceIface.getName();
                 String processorServiceName = iface.substring(0, iface.lastIndexOf("$")) + "$Processor";
                 Class<?> proServiceClazz = Class.forName(processorServiceName);
                 processor =
                         (TProcessor) proServiceClazz.getConstructor(serviceIface).newInstance(serviceImpl);
-                SERVICE_CLASS_PROCESSOR_MAP.putIfAbsent(serviceIface, processor);
+                serviceClass2tProcessorMap.putIfAbsent(serviceIface, processor);
             }
             return processor;
         }

@@ -1,11 +1,16 @@
 package com.zoo.dubbo.rpc.protocol.http.thrift;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.remoting.RemoteAccessException;
+
 import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.remoting.http.HttpHandler;
 import com.alibaba.dubbo.remoting.http.HttpServer;
@@ -20,14 +25,16 @@ import com.alibaba.dubbo.remoting.http.HttpBinder;
  * @author yankai913@gmail.com
  * @date 2014-4-30
  */
-public class ThriftProtocol extends AbstractProxyProtocol {
+public class HttpThriftProtocol extends AbstractProxyProtocol {
+
+    public static final String NAME = "httpt";
 
     public static final int DEFAULT_PORT = 80;
 
     private final Map<String, HttpServer> serverMap = new ConcurrentHashMap<String, HttpServer>();
 
-    private final Map<String, ThriftServiceExporter> skeletonMap =
-            new ConcurrentHashMap<String, ThriftServiceExporter>();
+    private final Map<String, HttpThriftServiceExporter> skeletonMap =
+            new ConcurrentHashMap<String, HttpThriftServiceExporter>();
 
     private HttpBinder httpBinder;
 
@@ -36,7 +43,7 @@ public class ThriftProtocol extends AbstractProxyProtocol {
         public void handle(HttpServletRequest request, HttpServletResponse response) throws IOException,
                 ServletException {
             String uri = request.getRequestURI();
-            ThriftServiceExporter skeleton = skeletonMap.get(uri);
+            HttpThriftServiceExporter skeleton = skeletonMap.get(uri);
             if (!request.getMethod().equalsIgnoreCase("POST")) {
                 response.setStatus(500);
             }
@@ -55,8 +62,8 @@ public class ThriftProtocol extends AbstractProxyProtocol {
     }
 
 
-    public ThriftProtocol() {
-        super(ThriftProtocol.class);
+    public HttpThriftProtocol() {
+        super(HttpThriftProtocol.class);
     }
 
 
@@ -79,7 +86,7 @@ public class ThriftProtocol extends AbstractProxyProtocol {
             server = httpBinder.bind(url, new InternalHandler());
             serverMap.put(addr, server);
         }
-        final ThriftServiceExporter httpThriftServiceExporter = new ThriftServiceExporter();
+        final HttpThriftServiceExporter httpThriftServiceExporter = new HttpThriftServiceExporter();
         httpThriftServiceExporter.setServiceInterface(type);
         httpThriftServiceExporter.setService(impl);
         try {
@@ -98,9 +105,35 @@ public class ThriftProtocol extends AbstractProxyProtocol {
     }
 
 
+    @SuppressWarnings("unchecked")
     @Override
     protected <T> T doRefer(Class<T> type, URL url) throws RpcException {
-        return null;
+        HttpThriftServiceFactoryBean httpThriftServiceFactoryBean = new HttpThriftServiceFactoryBean();
+        httpThriftServiceFactoryBean.setUrl(url);
+        httpThriftServiceFactoryBean.setServiceInterface(type);
+        HttpExecutor httpExecutor = new HttpExecutor();
+        httpThriftServiceFactoryBean.setHttpExecutor(httpExecutor);
+        return (T) httpThriftServiceFactoryBean.getObject();
     }
 
+
+    protected int getErrorCode(Throwable e) {
+        if (e instanceof RemoteAccessException) {
+            e = e.getCause();
+        }
+        if (e != null) {
+            Class<?> cls = e.getClass();
+            // 是根据测试Case发现的问题，对RpcException.setCode进行设置
+            if (SocketTimeoutException.class.equals(cls)) {
+                return RpcException.TIMEOUT_EXCEPTION;
+            }
+            else if (IOException.class.isAssignableFrom(cls)) {
+                return RpcException.NETWORK_EXCEPTION;
+            }
+            else if (ClassNotFoundException.class.isAssignableFrom(cls)) {
+                return RpcException.SERIALIZATION_EXCEPTION;
+            }
+        }
+        return super.getErrorCode(e);
+    }
 }
