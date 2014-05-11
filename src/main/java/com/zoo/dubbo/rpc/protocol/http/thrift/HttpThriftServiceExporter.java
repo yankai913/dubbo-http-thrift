@@ -80,15 +80,13 @@ public class HttpThriftServiceExporter {
         //
         response.setContentType(THRIFT_CONTENT_TYPE);
         InputStream inputStream = request.getInputStream();
-        ;
         OutputStream outputStream = response.getOutputStream();
-        ;
         String serviceName = getServiceInterface().getName();
         TProtocol proto = HttpThriftTool.newProtocol(inputStream, outputStream, serviceName);
         TProcessor processor = null;
         try {
             processor = getTProcessor(getServiceInterface(), getService());
-            // register
+            // register 可以优化
             tMultiplexedProcessor.registerProcessor(serviceName, processor);
             tMultiplexedProcessor.process(proto, proto);
         }

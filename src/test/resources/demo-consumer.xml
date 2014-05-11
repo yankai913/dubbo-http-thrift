@@ -16,7 +16,7 @@
 
 	<dubbo:protocol id="httpt" name="httpt" />
 
-	<dubbo:reference id="demoService" interface="dubbo.DemoService">
+	<dubbo:reference id="helloService" interface="com.zoo.dubbo.rpc.protocol.http.thrift.HelloService$Iface">
 	</dubbo:reference>
 
 

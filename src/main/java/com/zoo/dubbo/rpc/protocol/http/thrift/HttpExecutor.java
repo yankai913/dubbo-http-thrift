@@ -17,11 +17,11 @@ import org.springframework.util.StringUtils;
 
 import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.rpc.RpcInvocation;
-import com.alibaba.dubbo.rpc.RpcResult;
 
 
 /**
- * ThreadSafe, Singleton
+ * ThreadSafe, Singleton&prototype
+ * 
  * @author yankai913@gmail.com
  * @date 2014-5-6
  */
@@ -55,10 +55,12 @@ public class HttpExecutor {
 
     protected boolean acceptGzipEncoding = true;
 
+
     public HttpExecutor() {
-        
+
     }
-    
+
+
     protected void setAcceptGzipEncoding(boolean acceptGzipEncoding) {
         this.acceptGzipEncoding = acceptGzipEncoding;
     }
@@ -92,12 +94,16 @@ public class HttpExecutor {
         return (encodingHeader != null && encodingHeader.toLowerCase().indexOf(ENCODING_GZIP) != -1);
     }
 
+
     String convertToService(com.alibaba.dubbo.common.URL url) {
-        //TODO GET serviceUrl
-        return "";
+        // TODO GET serviceUrl
+        String serviceUrl = url.toIdentityString();
+        serviceUrl = serviceUrl.replace(HttpThriftProtocol.NAME, "http");
+        return serviceUrl;
     }
 
 
+    // 方法再拆，这里没写好，方法要纯净，有层次。
     HttpURLConnection getConnection(com.alibaba.dubbo.common.URL url) throws Exception {
         String serviceUrl = convertToService(url);
         URLConnection urlConnection = new java.net.URL(serviceUrl).openConnection();
@@ -114,7 +120,7 @@ public class HttpExecutor {
         if (isAcceptGzipEncoding()) {
             con.setRequestProperty(HTTP_HEADER_ACCEPT_ENCODING, ENCODING_GZIP);
         }
-        //get parameter from com.alibaba.dubbo.common.URL
+        // get parameter from com.alibaba.dubbo.common.URL
         con.setReadTimeout(url.getParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT));
         con.setConnectTimeout(url.getParameter(Constants.CONNECT_TIMEOUT_KEY,
             Constants.DEFAULT_CONNECT_TIMEOUT));
@@ -126,27 +132,41 @@ public class HttpExecutor {
     public Object syncExecuteRequest(com.alibaba.dubbo.common.URL url, RpcInvocation rpcInvocation)
             throws Exception {
         HttpURLConnection con = getConnection(url);
-        OutputStream outputStream = con.getOutputStream();
         // serialize rpcInvocation
         byte[] requestBody = HttpThriftTool.serialize(rpcInvocation);
         con.setRequestProperty(HTTP_HEADER_CONTENT_LENGTH, String.valueOf(requestBody.length));
+        OutputStream outputStream = con.getOutputStream();
         outputStream.write(requestBody);
         outputStream.flush();
-        InputStream is = null;
+        InputStream inputStream = null;
         if (isGzipResponse(con)) {
-            is = new GZIPInputStream(con.getInputStream());
+            inputStream = new GZIPInputStream(con.getInputStream());
         }
         else {
-            is = con.getInputStream();
+            inputStream = con.getInputStream();
         }
         // parse response，这里可以尝试转异步，暂时这里先同步
-        Object value = parseResponseInput(is, rpcInvocation);
-        return value;
+        try {
+            Object value = parseResponseInput(inputStream, rpcInvocation);
+            return value;
+        }
+        catch (Throwable t) {
+            throw new HttpThriftException(t);
+        }
+        finally {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+            if (outputStream != null) {
+                outputStream.close();
+            }
+        }
+
     }
 
-
-    Object parseResponseInput(InputStream inputStream, RpcInvocation rpcInvocation) throws Exception {
-        String serviceName = rpcInvocation.getAttachment(Constants.PATH_KEY);
+   //这里写的也不好
+    public Object parseResponseInput(InputStream inputStream, RpcInvocation rpcInvocation) throws Exception {
+        String serviceName = rpcInvocation.getAttachment(Constants.INTERFACE_KEY);
         String methodName = rpcInvocation.getMethodName();
         TProtocol iprot = HttpThriftTool.newProtocol(inputStream, null, serviceName);
         TMessage msg = iprot.readMessageBegin();
@@ -164,7 +184,7 @@ public class HttpExecutor {
         TBase<?, ?> _result = HttpThriftTool.getTBaseObject(clazz, null, null);
         _result.read(iprot);
         Object value = HttpThriftTool.getResult(_result);
-        RpcResult result = new RpcResult(value);
-        return result;
+        // RpcResult result = new RpcResult(value);
+        return value;
     }
 }

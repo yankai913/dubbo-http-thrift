@@ -111,6 +111,7 @@ public class HttpThriftServiceFactoryBean {
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
             // TODO 发请求
             RpcInvocation rpcInvocation = new RpcInvocation();
+            rpcInvocation.setParameterTypes(method.getParameterTypes());
             rpcInvocation.setArguments(args);
             rpcInvocation.setMethodName(method.getName());
             rpcInvocation.setAttachment(Constants.INTERFACE_KEY, serviceInterface.getName());

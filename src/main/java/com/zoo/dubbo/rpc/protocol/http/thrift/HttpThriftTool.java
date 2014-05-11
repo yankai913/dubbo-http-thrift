@@ -77,7 +77,7 @@ public class HttpThriftTool {
 
 
     public static byte[] serialize(RpcInvocation rpcInvocation) throws Exception {
-        String serviceName = rpcInvocation.getAttachment(Constants.PATH_KEY);
+        String serviceName = rpcInvocation.getAttachment(Constants.INTERFACE_KEY);
         // TODO ClassLoader
         Class<?>[] parameterTypes = rpcInvocation.getParameterTypes();
         Object[] initArgs = rpcInvocation.getArguments();
