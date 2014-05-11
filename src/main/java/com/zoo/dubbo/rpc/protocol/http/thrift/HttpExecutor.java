@@ -5,7 +5,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URLConnection;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.thrift.TApplicationException;
@@ -129,12 +131,23 @@ public class HttpExecutor {
     }
 
 
+    void addExtraHttpHeader(HttpURLConnection con) {
+        Map<String, String> httpHeaderMap = HttpHeaderHolder.get();
+        for (Map.Entry<String, String> entry : httpHeaderMap.entrySet()) {
+            con.setRequestProperty(entry.getKey(), entry.getValue());
+        }
+    }
+
+
     public Object syncExecuteRequest(com.alibaba.dubbo.common.URL url, RpcInvocation rpcInvocation)
             throws Exception {
         HttpURLConnection con = getConnection(url);
         // serialize rpcInvocation
         byte[] requestBody = HttpThriftTool.serialize(rpcInvocation);
         con.setRequestProperty(HTTP_HEADER_CONTENT_LENGTH, String.valueOf(requestBody.length));
+        // add extra httpHeader
+        addExtraHttpHeader(con);
+        //write
         OutputStream outputStream = con.getOutputStream();
         outputStream.write(requestBody);
         outputStream.flush();
@@ -164,7 +177,8 @@ public class HttpExecutor {
 
     }
 
-   //这里写的也不好
+
+    // 这里写的也不好
     public Object parseResponseInput(InputStream inputStream, RpcInvocation rpcInvocation) throws Exception {
         String serviceName = rpcInvocation.getAttachment(Constants.INTERFACE_KEY);
         String methodName = rpcInvocation.getMethodName();

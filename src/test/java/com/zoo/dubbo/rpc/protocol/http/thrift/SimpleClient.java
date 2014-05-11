@@ -34,6 +34,9 @@ public class SimpleClient {
             con.setRequestMethod("POST");
             con.setRequestProperty("Content-Type", "application/x-thrift");
             con.setRequestProperty("Content-Length", String.valueOf(requestBody.length));
+            //extra header
+            con.setRequestProperty("bomb", "three");
+            //write
             os = con.getOutputStream();
             os.write(requestBody);
             os.flush();

@@ -2,6 +2,8 @@ package com.zoo.dubbo.rpc.protocol.http.thrift;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,12 +14,12 @@ import javax.servlet.http.HttpServletResponse;
 import org.springframework.remoting.RemoteAccessException;
 
 import com.alibaba.dubbo.common.URL;
+import com.alibaba.dubbo.remoting.http.HttpBinder;
 import com.alibaba.dubbo.remoting.http.HttpHandler;
 import com.alibaba.dubbo.remoting.http.HttpServer;
 import com.alibaba.dubbo.rpc.RpcContext;
 import com.alibaba.dubbo.rpc.RpcException;
 import com.alibaba.dubbo.rpc.protocol.AbstractProxyProtocol;
-import com.alibaba.dubbo.remoting.http.HttpBinder;
 
 
 /**
@@ -42,6 +44,9 @@ public class HttpThriftProtocol extends AbstractProxyProtocol {
 
         public void handle(HttpServletRequest request, HttpServletResponse response) throws IOException,
                 ServletException {
+            // cache requestHeader
+            HttpHeaderHolder.set(getHeadersInfo(request));
+
             String uri = request.getRequestURI();
             HttpThriftServiceExporter skeleton = skeletonMap.get(uri);
             if (!request.getMethod().equalsIgnoreCase("POST")) {
@@ -59,6 +64,19 @@ public class HttpThriftProtocol extends AbstractProxyProtocol {
             }
         }
 
+    }
+
+
+    private Map<String, String> getHeadersInfo(HttpServletRequest request) {
+        Map<String, String> map = new HashMap<String, String>();
+        @SuppressWarnings("rawtypes")
+        Enumeration headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String key = (String) headerNames.nextElement();
+            String value = request.getHeader(key);
+            map.put(key, value);
+        }
+        return map;
     }
 
 
